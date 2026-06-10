@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ajedrez de Análisis v10.0 - Edición Libre</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 15px;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .barra-superior-carga {
+            width: 100%;
+            max-width: 1100px;
+            background: #2d2d2d;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .barra-superior-carga input {
+            flex: 1;
+            background: #111;
+            color: #4caf50;
+            border: 1px solid #444;
+            padding: 8px;
+            font-family: monospace;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .interfaz-global {
+            display: flex;
+            flex-direction: row;
+            gap: 25px;
+            width: 100%;
+            max-width: 1100px;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .zona-juego {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 540px; 
+            position: relative;
+        }
+
+        .tablero {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            border: 4px solid #333;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            border-radius: 4px;
+            background-color: #b58863;
+        }
+
+        .casilla { 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            position: relative; 
+        }
+        .clara { background-color: #f0d9b5; }
+        .oscura { background-color: #b58863; }
+        .seleccionada { background-color: rgba(255, 235, 59, 0.4) !important; }
+        .ultima-jugada { background-color: rgba(76, 175, 80, 0.4) !important; }
+
+        .coordenada-notacion {
+            position: absolute;
+            font-size: 0.85rem;
+            font-weight: 900;
+            user-select: none;
+            pointer-events: none;
+            font-family: Arial, sans-serif;
+        }
+        .coordenada-numero { top: 4px; left: 5px; }
+        .coordenada-letra { bottom: 4px; right: 5px; }
+        
+        .clara .coordenada-notacion { color: #2d1a04; }
+        .oscura .coordenada-notacion { color: #ffffff; }
+
+        .indicador-movimiento {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30%;
+            height: 30%;
+            border-radius: 50%;
+            background-color: rgba(2, 136, 209, 0.6);
+            pointer-events: none;
+            z-index: 3;
+        }
+        .indicador-movimiento.captura {
+            width: 80%;
+            height: 80%;
+            border: 4px solid rgba(2, 136, 209, 0.6);
+            background-color: transparent;
+            border-radius: 50%;
+        }
+
+        .pieza { 
+            width: 95%; 
+            height: 95%; 
+            object-fit: contain; 
+            user-select: none; 
+            z-index: 2; 
+            cursor: grab; 
+        }
+        .pieza:active { cursor: grabbing; }
+
+        .barra-navegacion {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            margin-top: 12px;
+        }
+
+        .btn-nav {
+            flex: 1;
+            padding: 10px;
+            font-size: 0.95rem;
+            background-color: #0288d1;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-nav:hover { background-color: #039be5; }
+        .btn-nav:disabled { background-color: #444; opacity: 0.3; cursor: not-allowed; }
+
+        .btn-compartir {
+            background-color: #ff9100 !important;
+            color: #000000 !important;
+        }
+        .btn-compartir:hover { background-color: #ffa726 !important; }
+
+        .consola-codigos {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            width: 100%;
+        }
+        .consola-codigos input {
+            flex: 1;
+            background: #222;
+            color: #4caf50;
+            border: 1px solid #444;
+            padding: 8px;
+            font-family: monospace;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 0.95rem;
+        }
+
+        .panel-lateral-derecho {
+            flex: 1;
+            max-width: 520px;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        .contenedor-relojes-torneo {
+            display: flex;
+            background: #2d2d2d;
+            border: 3px solid #444;
+            border-radius: 6px;
+            padding: 10px;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .reloj-pantalla {
+            flex: 1;
+            background: #000000;
+            border: 2px solid #555;
+            border-radius: 4px;
+            padding: 12px 0;
+            text-align: center;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #ff3d00; 
+        }
+
+        .etiqueta-reloj {
+            font-size: 0.75rem;
+            display: block;
+            color: #aaa;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+
+        .bloque-ajustes-derecho {
+            background-color: #252525;
+            border: 1px solid #3d3d3d;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .fila-ajuste {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+        }
+
+        .fila-ajuste label {
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #aaa;
+            text-transform: uppercase;
+        }
+
+        .control-slider { flex: 1; accent-color: #0288d1; cursor: pointer; }
+        .selector-tiempo {
+            background-color: #1a1a1a;
+            color: #ffffff;
+            border: 1px solid #444;
+            padding: 6px 10px;
+            border-radius: 4px;
+            width: 100%;
+        }
+
+        .seccion-comentario {
+            display: flex;
+            flex-direction: column;
+            background-color: #252525;
+            border: 1px solid #3d3d3d;
+            border-radius: 6px;
+            padding: 15px;
+            box-sizing: border-box;
+            height: 340px; 
+        }
+
+        .seccion-comentario label {
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #4caf50;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .seccion-comentario textarea {
+            width: 100%;
+            flex: 1;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 12px;
+            resize: none;
+            font-size: 1.05rem;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 850px) {
+            .interfaz-global { flex-direction: column; align-items: center; }
+            .panel-lateral-derecho { width: 100%; max-width: 540px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="barra-superior-carga">
+        <input type="text" id="input-barrita-carga" placeholder="Pega aquí el código copiado de Messenger/WhatsApp, un PGN o FEN...">
+        <button class="btn-nav" style="flex:none; width:auto; padding: 8px 15px; background-color: #4caf50;" onclick="procesarYDividirCarga()">PROCESAR⚙️</button>
+        <button class="btn-nav" style="flex:none; width:auto; padding: 8px 12px; background-color: #b71c1c;" onclick="reiniciarTodo()">RESET 🔄</button>
+    </div>
+
+    <div class="interfaz-global">
+        
+        <div class="zona-juego" id="bloque-juego">
+            <div class="contenedor-tablero">
+                <div class="tablero" id="tablero"></div>
+            </div>
+
+            <div class="barra-navegacion">
+                <button id="btn-atras" class="btn-nav" onclick="irAtras()">◀ ANTERIOR</button>
+                <button class="btn-nav" style="background-color: #555;" onclick="girarTablero()">GIRAR 🔄</button>
+                <button id="btn-adelante" class="btn-nav" onclick="irAdelante()">SIGUIENTE ▶</button>
+                <button class="btn-nav btn-compartir" onclick="compartirPartidaAhorro()">COMPARTIR 🔗</button>
+            </div>
+
+            <div class="consola-codigos">
+                <input type="text" id="codigo-salida" readonly placeholder="Indicador de jugadas en Español">
+                <input type="text" id="codigo-entrada" placeholder="Mover por coordenadas (ej: e2e4)..." onchange="aplicarCodigoManual()">
+            </div>
+        </div>
+
+        <div class="panel-lateral-derecho">
+            
+            <div class="contenedor-relojes-torneo">
+                <div class="reloj-pantalla" id="reloj-blancas">
+                    <span class="etiqueta-reloj">Blancas</span>
+                    <span id="tiempo-blancas">♾️</span>
+                </div>
+                <div class="reloj-pantalla" id="reloj-negras">
+                    <span class="etiqueta-reloj">Negras</span>
+                    <span id="tiempo-negras">♾️</span>
+                </div>
+            </div>
+            
+            <div class="bloque-ajustes-derecho">
+                <div class="fila-ajuste">
+                    <label>Tamaño Tablero:</label>
+                    <input type="range" class="control-slider" id="slider-tamano" min="340" max="650" value="540" oninput="ajustarEscalaTablero()">
+                </div>
+                <div class="fila-ajuste">
+                    <label>Modo de Juego:</label>
+                    <select class="selector-tiempo" id="select-tiempo-modo" disabled>
+                        <option value="sin-tiempo">ANÁLISIS LIBRE ABIERTO ♾️</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="seccion-comentario" id="caja-comentarios">
+                <label>
+                    <span id="titulo-jugada">📝 SISTEMA LIBRE DE JUEGO</span>
+                    <span style="color:#ff9100;" id="contador-variantes">Línea Abierta</span>
+                </label>
+                <textarea id="cuadro-comentarios-dinamico" placeholder="Mueve libremente. El reconocimiento automático de la Siciliana y otras defensas se adaptará a tu ritmo..." oninput="guardarComentarioManual()"></textarea>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const _0xPz = {
+            'r': 'https://upload.wikimedia.org/wikipedia/commons/f/ff/Chess_rdt45.svg','n': 'https://upload.wikimedia.org/wikipedia/commons/e/ef/Chess_ndt45.svg','b': 'https://upload.wikimedia.org/wikipedia/commons/9/98/Chess_bdt45.svg','q': 'https://upload.wikimedia.org/wikipedia/commons/4/47/Chess_qdt45.svg','k': 'https://upload.wikimedia.org/wikipedia/commons/f/f0/Chess_kdt45.svg','p': 'https://upload.wikimedia.org/wikipedia/commons/c/c7/Chess_pdt45.svg','P': 'https://upload.wikimedia.org/wikipedia/commons/4/45/Chess_plt45.svg','R': 'https://upload.wikimedia.org/wikipedia/commons/7/72/Chess_rlt45.svg','N': 'https://upload.wikimedia.org/wikipedia/commons/7/70/Chess_nlt45.svg','B': 'https://upload.wikimedia.org/wikipedia/commons/b/b1/Chess_blt45.svg','Q': 'https://upload.wikimedia.org/wikipedia/commons/1/15/Chess_qlt45.svg','K': 'https://upload.wikimedia.org/wikipedia/commons/4/42/Chess_klt45.svg'
+        };
+
+        const _0xAp = {
+            "e4 c5": "Defensa Siciliana detectada ⚔️",
+            "e4 e5 Nf3 Nc6 Bb5": "Apertura Española / Ruy López 🇪🇸",
+            "e4 e5 Nf3 Nc6 Bc4": "Apertura Italiana 🇮🇹",
+            "d4 d5 c4": "Gambito de Dama 👑",
+            "e4 e6": "Defensa Francesa 🥖",
+            "e4 c6": "Defensa Caro-Kann 🛡️"
+        };
+
+        let chess = new Chess();
+        let historialArbol = [{ fen: chess.fen(), comentario: "Modo libre iniciado. Puedes generar códigos de partida cuando quieras.", san: "Inicio", lineaMovs: "" }];
+        let indiceHistorial = 0;
+        let tableroInvertido = false, casillaSeleccionada = null;
+
+        const tableroDiv = document.getElementById('tablero');
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function ajustarEscalaTablero() {
+            const ancho = document.getElementById('slider-tamano').value;
+            document.getElementById('bloque-juego').style.maxWidth = ancho + "px";
+            const alto = parseInt(ancho) + 60; 
+            document.getElementById('caja-comentarios').style.height = (alto - 140) + "px";
+        }
+
+        function reproducirSonidoTac() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.type = 'triangle'; osc.frequency.setValueAtTime(140, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.08);
+            gain.gain.setValueAtTime(0.6, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.08);
+        }
+
+        function girarTablero() { tableroInvertido = !tableroInvertido; redibujarTablero(); }
+
+        function reiniciarTodo() {
+            chess.reset();
+            historialArbol = [{ fen: chess.fen(), comentario: "Posición restablecida. Listo para jugar.", san: "Inicio", lineaMovs: "" }];
+            indiceHistorial = 0;
+            document.getElementById('input-barrita-carga').value = '';
+            document.getElementById('codigo-salida').value = '';
+            actualizarNavegacionYComentarios();
+            redibujarTablero();
+        }
+
+        function traducirAlEspañol(sanIngles) {
+            return sanIngles.replace('K', 'R').replace('Q', 'D').replace('R', 'T').replace('B', 'A').replace('N', 'C');
+        }
+
+        function ejecutarMovimientoLogico(origen, destino) {
+            let movimiento = chess.move({ from: origen, to: destino, promotion: 'q' });
+
+            if (movimiento) {
+                let sanEsp = traducirAlEspañol(movimiento.san);
+                let pasoPrevio = historialArbol[indiceHistorial].lineaMovs;
+                let nuevaLinea = pasoPrevio ? pasoPrevio + " " + movimiento.san : movimiento.san;
+
+                let alertTáctica = `Jugada: ${sanEsp}`;
+                let comentarioAutomático = "";
+
+                if (chess.in_checkmate()) {
+                    alertTáctica += " ¡JAQUE MATE! ++";
+                    comentarioAutomático = "👑 Fin de la partida por Jaque Mate ++";
+                } else if (chess.in_check()) {
+                    alertTáctica += " JAQUE +";
+                    comentarioAutomático = "⚠️ ¡Jaque + al rey!";
+                }
+
+                for (let clave in _0xAp) {
+                    if (nuevaLinea.startsWith(clave)) {
+                        comentarioAutomático += `\n🌟 Teoría: ${_0xAp[clave]}`;
+                    }
+                }
+
+                document.getElementById('codigo-salida').value = alertTáctica;
+
+                if (indiceHistorial < historialArbol.length - 1) {
+                    if (historialArbol[indiceHistorial + 1].san !== sanEsp) {
+                        historialArbol = historialArbol.slice(0, indiceHistorial + 1);
+                    }
+                }
+
+                historialArbol.push({
+                    fen: chess.fen(),
+                    comentario: comentarioAutomático.trim(),
+                    san: sanEsp,
+                    lineaMovs: nuevaLinea
+                });
+
+                indiceHistorial++;
+                reproducirSonidoTac();
+                actualizarNavegacionYComentarios();
+            }
+            casillaSeleccionada = null;
+            redibujarTablero();
+        }
+
+        // FUNCIÓN TOTALMENTE LIBERADA - COMPARTE LO QUE SEA, INCLUSO INICIO O TEXTO PROPIO
+        function compartirPartidaAhorro() {
+            let pgnMovimientos = [];
+            for(let i=1; i<historialArbol.length; i++) {
+                pgnMovimientos.push(historialArbol[i].san);
+            }
+            
+            // Si el historial está en blanco, mandamos la clave de posición inicial libre
+            let datosAEnviar = pgnMovimientos.length === 0 ? "INICIO_LIBRE" : pgnMovimientos.join(',');
+            let codigoCompacto = btoa(datosAEnviar); 
+            
+            navigator.clipboard.writeText(codigoCompacto);
+            alert("¡Código libre copiado! Envíalo sin miedo por WhatsApp o Facebook Messenger. Tu amigo solo tendrá que procesarlo para sincronizarse.");
+            document.getElementById('input-barrita-carga').value = codigoCompacto;
+        }
+
+        function irAtras() {
+            if (indiceHistorial > 0) {
+                indiceHistorial--;
+                chess.load(historialArbol[indiceHistorial].fen);
+                reproducirSonidoTac();
+                actualizarNavegacionYComentarios();
+                redibujarTablero();
+            }
+        }
+
+        function irAdelante() {
+            if (indiceHistorial < historialArbol.length - 1) {
+                indiceHistorial++;
+                chess.load(historialArbol[indiceHistorial].fen);
+                reproducirSonidoTac();
+                actualizarNavegacionYComentarios();
+                redibujarTablero();
+            }
+        }
+
+        function actualizarNavegacionYComentarios() {
+            document.getElementById('btn-atras').disabled = (indiceHistorial === 0);
+            document.getElementById('btn-adelante').disabled = (indiceHistorial === historialArbol.length - 1);
+            let nodo = historialArbol[indiceHistorial];
+            
+            if(indiceHistorial === 0) {
+                document.getElementById('titulo-jugada').innerText = `📝 ANÁLISIS LIBRE`;
+                document.getElementById('contador-variantes').innerText = "Abierto";
+            } else {
+                let nJugada = Math.ceil(indiceHistorial / 2);
+                let color = (indiceHistorial % 2 !== 0) ? "Blancas" : "Negras";
+                document.getElementById('titulo-jugada').innerText = `📝 JUGADA ${nJugada} - ${color}`;
+            }
+            document.getElementById('cuadro-comentarios-dinamico').value = nodo.comentario || "";
+        }
+
+        function guardarComentarioManual() {
+            historialArbol[indiceHistorial].comentario = document.getElementById('cuadro-comentarios-dinamico').value;
+        }
+
+        function procesarYDividirCarga() {
+            const input = document.getElementById('input-barrita-carga').value.trim();
+            if (!input) return;
+
+            try {
+                let textoDecodificado = atob(input);
+                if (textoDecodificado === "INICIO_LIBRE") {
+                    reiniciarTodo();
+                    return;
+                }
+                
+                let jugadas = textoDecodificado.split(',');
+                reiniciarTodo();
+                for(let j of jugadas) {
+                    let jLimpia = j.replace('+','').replace('#','');
+                    let movimientosLegales = chess.moves();
+                    let encontrado = movimientosLegales.find(m => traducirAlEspañol(m).replace('+','').replace('#','') === jLimpia);
+                    if(encontrado) chess.move(encontrado);
+                }
+                historialArbol = [{ fen: chess.fen(), commentary: "Línea libre sincronizada desde chat.", san: "Importado", lineaMovs: "" }];
+                indiceHistorial = 0;
+                actualizarNavegacionYComentarios(); redibujarTablero();
+                return;
+            } catch(e) {
+                // Si el código es un FEN estándar, se carga directo
+            }
+
+            let validador = new Chess();
+            if (input.split('/').length >= 6) {
+                if (validador.load(input)) {
+                    chess.load(input);
+                    historialArbol = [{ fen: chess.fen(), comentario: "Posición cargada.", san: "FEN", lineaMovs: "" }];
+                    indiceHistorial = 0;
+                    actualizarNavegacionYComentarios(); redibujarTablero();
+                }
+            }
+        }
+
+        function redibujarTablero() {
+            tableroDiv.innerHTML = '';
+            const board = chess.board();
+            let movimientosLegales = [];
+            const letras = ['a','b','c','d','e','f','g','h'];
+            
+            if (casillaSeleccionada) {
+                const casillaOrigenNotacion = letras[casillaSeleccionada.col] + (8 - casillaSeleccionada.fila);
+                movimientosLegales = chess.moves({ square: casillaOrigenNotacion, verbose: true });
+            }
+
+            for (let f = 0; f < 8; f++) {
+                for (let c = 0; c < 8; c++) {
+                    const fila = tableroInvertido ? 7 - f : f;
+                    const col = tableroInvertido ? 7 - c : c;
+                    
+                    const casilla = document.createElement('div');
+                    casilla.className = `casilla ${(fila + col) % 2 === 0 ? 'clara' : 'oscura'}`;
+                    const notacionCasillaActual = letras[col] + (8 - fila);
+
+                    if (casillaSeleccionada && casillaSeleccionada.fila === fila && casillaSeleccionada.col === col) {
+                        casilla.classList.add('seleccionada');
+                    }
+                    
+                    if (board[fila][col] && board[fila][col].type === 'k' && chess.in_check() && board[fila][col].color === chess.turn()) {
+                        casilla.style.backgroundColor = "rgba(244, 67, 54, 0.7)";
+                    }
+
+                    if (c === 0) {
+                        const numLabel = document.createElement('span');
+                        numLabel.className = 'coordenada-notacion coordenada-numero';
+                        numLabel.innerText = 8 - fila;
+                        casilla.appendChild(numLabel);
+                    }
+                    if (f === 7) {
+                        const letLabel = document.createElement('span');
+                        letLabel.className = 'coordenada-notacion coordenada-letra';
+                        letLabel.innerText = letras[col];
+                        casilla.appendChild(letLabel);
+                    }
+
+                    const piezaObjeto = board[fila][col];
+                    if (piezaObjeto) {
+                        const img = document.createElement('img');
+                        img.className = 'pieza';
+                        const letraPieza = piezaObjeto.color === 'w' ? piezaObjeto.type.toUpperCase() : piezaObjeto.type.toLowerCase();
+                        img.src = _0xPz[letraPieza];
+                        
+                        if (piezaObjeto.color === chess.turn()) {
+                            img.draggable = true;
+                            img.ondragstart = (e) => {
+                                casillaSeleccionada = { fila, col };
+                                e.dataTransfer.setData('text/plain', notacionCasillaActual);
+                                setTimeout(() => redibujarTablero(), 10);
+                            };
+                        }
+                        casilla.appendChild(img);
+                    }
+                    
+                    const movimientoDestino = movimientosLegales.find(move => move.to === notacionCasillaActual);
+                    if (movimientoDestino) {
+                        const indicador = document.createElement('div');
+                        indicador.className = 'indicador-movimiento';
+                        if (movimientoDestino.captured || piezaObjeto) indicador.classList.add('captura');
+                        casilla.appendChild(indicador);
+                    }
+                    
+                    casilla.ondragover = (e) => e.preventDefault();
+                    casilla.ondrop = (e) => {
+                        e.preventDefault();
+                        const origen = e.dataTransfer.getData('text/plain');
+                        if (origen) ejecutarMovimientoLogico(origen, notacionCasillaActual);
+                    };
+
+                    casilla.onclick = () => manejarClickCasilla(f, c);
+                    tableroDiv.appendChild(casilla);
+                }
+            }
+        }
+
+        function manejarClickCasilla(f, c) {
+            const fila = tableroInvertido ? 7 - f : f;
+            const col = tableroInvertido ? 7 - c : c;
+            const letras = ['a','b','c','d','e','f','g','h'];
+            const casillaDestino = letras[col] + (8 - fila);
+
+            if (casillaSeleccionada) {
+                const casillaOrigen = letras[casillaSeleccionada.col] + (8 - casillaSeleccionada.fila);
+                ejecutarMovimientoLogico(casillaOrigen, casillaDestino);
+            } else {
+                const pieza = chess.board()[fila][col];
+                if (pieza && pieza.color === chess.turn()) {
+                    casillaSeleccionada = { fila, col };
+                    redibujarTablero();
+                }
+            }
+        }
+
+        function aplicarCodigoManual() {
+            const input = document.getElementById('codigo-entrada');
+            const jugada = input.value.trim().toLowerCase();
+            input.value = '';
+            if (jugada.length !== 4) return;
+            ejecutarMovimientoLogico(jugada.substring(0,2), jugada.substring(2,4));
+        }
+
+        ajustarEscalaTablero();
+        redibujarTablero();
+    </script>
+</body>
+</html>

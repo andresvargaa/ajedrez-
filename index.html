@@ -1,0 +1,124 @@
+<script>
+    // Bloquear el click derecho en toda la página para evitar que inspeccionen
+    document.addEventListener('contextmenu', event => event.preventDefault());
+
+    // Bloquear las teclas de atajo comunes (F12, Control+U para ver código, Control+S para guardar)
+    document.addEventListener('keydown', function(e) {
+        if (e.key === "F12" || 
+            (e.ctrlKey && e.key === "u") || 
+            (e.ctrlKey && e.key === "s") || 
+            (e.ctrlKey && e.shiftKey && e.key === "I")) {
+            e.preventDefault();
+            alert("🔒 Sistema protegido propiedad de Andrés.");
+        }
+    });
+</script><!DOCTYPE html><script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<script src="tiempo_real.js"></script>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ajedrez Profesional - Edición Modular</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js"></script>
+    <link rel="stylesheet" href="diseno.css">
+</head>
+<body>
+
+    <div class="barra-superior-carga">
+        <input type="text" id="input-barrita-carga" placeholder="Pega aquí el código copiado de Messenger/WhatsApp, un PGN o FEN...">
+        <button class="btn-nav" style="flex:none; width:auto; padding: 8px 15px; background-color: #4caf50;" onclick="procesarYDividirCarga()">PROCESAR⚙️</button>
+        
+        <button class="btn-nav" style="flex:none; width:auto; padding: 8px 12px; background-color: #e65100;" onclick="lanzarMonedaSuerte()">MANITOS MÁGICAS 🪙</button>
+        
+        <button class="btn-nav" style="flex:none; width:auto; padding: 8px 15px; background-color: #0288d1; font-weight: bold;" onclick="if(typeof pedirJugadaAlPescado === 'function') pedirJugadaAlPescado()">PESCADO JUEGA YA 🦈</button>
+        
+        <button class="btn-nav" style="flex:none; width:auto; padding: 8px 12px; background-color: #b71c1c;" onclick="reiniciarPartidaTotal()">RESET 🔄</button>
+    </div>
+
+    <div class="interfaz-global">
+        
+        <div class="zona-juego" id="bloque-juego">
+            <div class="contenedor-tablero">
+                <div class="tablero" id="tablero"></div>
+            </div>
+
+            <div class="barra-navegacion">
+                <button id="btn-atras" class="btn-nav" onclick="irAtras()">◀ ANTERIOR</button>
+                <button class="btn-nav" style="background-color: #555;" onclick="girarTablero()">GIRAR 🔄</button>
+                <button id="btn-adelante" class="btn-nav" onclick="irAdelante()">SIGUIENTE ▶</button>
+                <button class="btn-nav btn-compartir" onclick="compartirPartidaAhorro()">COMPARTIR 🔗</button>
+            </div>
+
+            <div class="consola-codigos">
+                <input type="text" id="codigo-salida" readonly style="width: 100%; text-align: center; font-weight: bold;" placeholder="Indicador de jugadas en Español">
+            </div>
+        </div>
+
+        <div class="panel-lateral-derecho" id="panel-derecho-fijo">
+            
+            <div class="contenedor-relojes-torneo">
+                <div class="reloj-pantalla" id="reloj-blancas">
+                    <span class="etiqueta-reloj">Blancas</span>
+                    <span class="num-tiempo-reloj" id="tiempo-blancas">♾️</span>
+                </div>
+                <div class="reloj-pantalla" id="reloj-negras">
+                    <span class="etiqueta-reloj">Negras</span>
+                    <span class="num-tiempo-reloj" id="tiempo-negras">♾️</span>
+                </div>
+            </div>
+            
+            <div class="bloque-ajustes-derecho">
+                <div class="fila-ajuste">
+                    <label>Tamaño Tablero:</label>
+                    <input type="range" class="control-slider" id="slider-tamano" min="340" max="650" value="540" oninput="ajustarEscalaTablero()">
+                </div>
+                
+                <div class="fila-ajuste">
+                    <label>Nivel Pescado:</label>
+                    <select class="selector-tiempo" id="select-elo-pescado">
+                        <option value="principiante">Principiante (ELO 1000) 🛡️</option>
+                        <option value="intermedio">Aficionado (ELO 1400) ⚔️</option>
+                        <option value="avanzado">Club Fuerte (ELO 1800) 🏆</option>
+                        <option value="chessmaster" selected>Chessmaster (ELO 2100) 🧠</option>
+                        <option value="maestro">Gran Maestro (ELO 2600+) 🦈</option>
+                    </select>
+                </div>
+
+                <div class="fila-ajuste">
+                    <label>Modo de Juego:</label>
+                    <select class="selector-tiempo" id="select-tiempo-modo" onchange="cambiarModoTiempo()">
+                        <option value="analisis" selected>ANÁLISIS LIBRE ABIERTO ♾️</option>
+                        <option value="1">BULLET (1 MINUTO) ✈️</option>
+                        <option value="3">BLITZ (3 MINUTOS) ⚡</option>
+                        <option value="5">BLITZ (5 MINUTOS) ⏱️</option>
+                        <option value="10">RAPID (10 MINUTOS) ⏳</option>
+                        <option value="30">RAPID (30 MINUTOS) 🏆</option>
+                        <option value="personalizado">⚙️ PERSONALIZADO (Estilo Lichess)...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="seccion-comentario" id="caja-comentarios">
+                <label>
+                    <span id="titulo-jugada">📝 SISTEMA LIBRE DE JUEGO</span>
+                    <span style="color:#ff9100;" id="contador-variantes">Línea Abierta</span>
+                </label>
+                <textarea id="cuadro-comentarios-dinamico" placeholder="Mueve libremente. El reconocimiento automático se adaptará a tu ritmo..." oninput="guardarComentarioManual()"></textarea>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="tablero_raton.js"></script>
+    <script src="relojes.js"></script>
+    <script src="guardar_cargar.js"></script>
+    <script src="motor_pescado.js"></script>
+    <script>
+        if (typeof ajustarEscalaTablero === 'function') ajustarEscalaTablero();
+        if (typeof redibujarTablero === 'function') redibujarTablero();
+        if (typeof cambiarModoTiempo === 'function') cambiarModoTiempo();
+    </script>
+</body>
+</html>
